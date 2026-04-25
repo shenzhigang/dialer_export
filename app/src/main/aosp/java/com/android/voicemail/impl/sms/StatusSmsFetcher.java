@@ -31,6 +31,7 @@ import android.support.annotation.WorkerThread;
 import android.telecom.PhoneAccountHandle;
 import android.telephony.SmsManager;
 import android.telephony.VisualVoicemailSms;
+import com.android.dialer.BuildConfig;
 import com.android.voicemail.impl.Assert;
 import com.android.voicemail.impl.OmtpConstants;
 import com.android.voicemail.impl.OmtpService;
@@ -53,8 +54,7 @@ public class StatusSmsFetcher extends BroadcastReceiver implements Closeable {
 
   private static final long STATUS_SMS_TIMEOUT_MILLIS = 60_000;
 
-  private static final String PERMISSION_DIALER_ORIGIN =
-      "com.android.dialer.permission.DIALER_ORIGIN";
+  private static final String PERMISSION_DIALER_ORIGIN = BuildConfig.DIALER_ORIGIN_PERMISSION;
 
   private static final String ACTION_REQUEST_SENT_INTENT =
       "com.android.voicemailomtp.sms.REQUEST_SENT";

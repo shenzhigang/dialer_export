@@ -18,6 +18,7 @@ package com.android.dialer.constants;
 
 import android.content.Context;
 import android.support.annotation.NonNull;
+import com.android.dialer.BuildConfig;
 import com.android.dialer.proguard.UsedByReflection;
 
 /** Provider config values for AOSP Dialer. */
@@ -27,31 +28,31 @@ public class ConstantsImpl extends Constants {
   @Override
   @NonNull
   public String getFilteredNumberProviderAuthority() {
-    return "com.android.dialer.blocking.filterednumberprovider";
+    return BuildConfig.FILTERED_NUMBER_PROVIDER_AUTHORITY;
   }
 
   @Override
   @NonNull
   public String getFileProviderAuthority() {
-    return "com.android.dialer.files";
+    return BuildConfig.FILE_PROVIDER_AUTHORITY;
   }
 
   @NonNull
   @Override
   public String getAnnotatedCallLogProviderAuthority() {
-    return "com.android.dialer.annotatedcalllog";
+    return BuildConfig.ANNOTATED_CALL_LOG_PROVIDER_AUTHORITY;
   }
 
   @NonNull
   @Override
   public String getPhoneLookupHistoryProviderAuthority() {
-    return "com.android.dialer.phonelookuphistory";
+    return BuildConfig.PHONE_LOOKUP_HISTORY_PROVIDER_AUTHORITY;
   }
 
   @NonNull
   @Override
   public String getPreferredSimFallbackProviderAuthority() {
-    return "com.android.dialer.preferredsimfallback";
+    return BuildConfig.PREFERRED_SIM_FALLBACK_PROVIDER_AUTHORITY;
   }
 
   @Override

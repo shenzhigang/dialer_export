@@ -15,6 +15,7 @@ def packagesMk = file('src/main/aosp/packages.mk')
 def mergedResDir = file("$buildDir/generated/merged-res/main")
 def generatedRShimsDir = file("$buildDir/generated/r-shims/main")
 def debugRSymbolFile = file("$buildDir/intermediates/runtime_symbol_list/debug/processDebugResources/R.txt")
+def installableApplicationId = 'com.android.dialer.export'
 def excludedJavaFiles = [
     'com/android/incallui/calllocation/impl/AuthException.java',
     'com/android/incallui/calllocation/impl/CallLocationImpl.java',
@@ -254,12 +255,26 @@ android {
   compileSdk 35
 
   defaultConfig {
-    applicationId 'com.android.dialer'
+    applicationId installableApplicationId
     minSdk 24
     targetSdk 30
     versionCode 2900000
     versionName '23.0'
     testInstrumentationRunner 'android.support.test.runner.AndroidJUnitRunner'
+    manifestPlaceholders = [
+        dialerOriginPermission              : "${installableApplicationId}.permission.DIALER_ORIGIN",
+        fileProviderAuthority               : "${installableApplicationId}.files",
+        filteredNumberProviderAuthority     : "${installableApplicationId}.blocking.filterednumberprovider",
+        annotatedCallLogProviderAuthority   : "${installableApplicationId}.annotatedcalllog",
+        phoneLookupHistoryProviderAuthority : "${installableApplicationId}.phonelookuphistory",
+        preferredSimFallbackProviderAuthority: "${installableApplicationId}.preferredsimfallback",
+    ]
+    buildConfigField 'String', 'DIALER_ORIGIN_PERMISSION', "\"${installableApplicationId}.permission.DIALER_ORIGIN\""
+    buildConfigField 'String', 'FILE_PROVIDER_AUTHORITY', "\"${installableApplicationId}.files\""
+    buildConfigField 'String', 'FILTERED_NUMBER_PROVIDER_AUTHORITY', "\"${installableApplicationId}.blocking.filterednumberprovider\""
+    buildConfigField 'String', 'ANNOTATED_CALL_LOG_PROVIDER_AUTHORITY', "\"${installableApplicationId}.annotatedcalllog\""
+    buildConfigField 'String', 'PHONE_LOOKUP_HISTORY_PROVIDER_AUTHORITY', "\"${installableApplicationId}.phonelookuphistory\""
+    buildConfigField 'String', 'PREFERRED_SIM_FALLBACK_PROVIDER_AUTHORITY', "\"${installableApplicationId}.preferredsimfallback\""
   }
 
   buildFeatures {

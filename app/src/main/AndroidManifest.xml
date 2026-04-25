@@ -43,8 +43,8 @@
   <uses-permission android:name="android.permission.STATUS_BAR" />
   <uses-permission android:name="android.permission.CAMERA" />
   <uses-permission android:name="android.permission.STOP_APP_SWITCHES" />
-  <permission android:name="com.android.dialer.permission.DIALER_ORIGIN" android:protectionLevel="signature" />
-  <uses-permission android:name="com.android.dialer.permission.DIALER_ORIGIN" />
+  <permission android:name="${dialerOriginPermission}" android:protectionLevel="signature" />
+  <uses-permission android:name="${dialerOriginPermission}" />
   <uses-permission android:name="com.sec.android.provider.badge.permission.READ" />
   <uses-permission android:name="com.sec.android.provider.badge.permission.WRITE" />
   <uses-permission android:name="com.htc.launcher.permission.READ_SETTINGS" />
@@ -60,7 +60,7 @@
   <uses-permission android:name="com.oppo.launcher.permission.READ_SETTINGS" />
   <uses-permission android:name="com.oppo.launcher.permission.WRITE_SETTINGS" />
   <application android:hardwareAccelerated="true" android:icon="@mipmap/ic_launcher_phone" android:label="@string/applicationLabel" android:name="com.android.dialer.binary.aosp.AospDialerApplication" android:supportsRtl="true" android:usesCleartextTraffic="false">
-    <receiver android:name=".VoicemailSecretCodeReceiver" android:exported="true">
+    <receiver android:name="com.android.voicemail.VoicemailSecretCodeReceiver" android:exported="true">
       <intent-filter>
         <action android:name="android.provider.Telephony.SECRET_CODE" />
         <data android:scheme="android_secret_code" />
@@ -141,11 +141,11 @@
         <action android:name="android.telecom.InCallService" />
       </intent-filter>
     </service>
-    <activity android:excludeFromRecents="true" android:exported="false" android:name=".AudioRouteSelectorActivity" android:noHistory="true" android:theme="@style/Theme.Incall.DialogHolder" />
+    <activity android:excludeFromRecents="true" android:exported="false" android:name="com.android.incallui.AudioRouteSelectorActivity" android:noHistory="true" android:theme="@style/Theme.Incall.DialogHolder" />
     <activity android:excludeFromRecents="true" android:exported="false" android:name="com.android.incallui.PostCharDialogActivity" android:noHistory="true" android:theme="@style/Theme.Incall.DialogHolder" />
     <receiver android:directBootAware="true" android:exported="false" android:name="com.android.incallui.NotificationBroadcastReceiver" />
-    <receiver android:exported="false" android:name=".ReturnToCallActionReceiver" />
-    <receiver android:name=".PawSecretCodeListener" android:exported="true">
+    <receiver android:exported="false" android:name="com.android.incallui.ReturnToCallActionReceiver" />
+    <receiver android:name="com.android.incallui.answer.impl.hint.PawSecretCodeListener" android:exported="true">
       <intent-filter>
         <action android:name="android.provider.Telephony.SECRET_CODE" />
         <data android:scheme="android_secret_code" />
@@ -153,9 +153,9 @@
     </receiver>
     <activity android:directBootAware="true" android:excludeFromRecents="true" android:exported="false" android:label="@string/phoneAppLabel" android:name="com.android.incallui.callpending.CallPendingActivity" android:resizeableActivity="true" android:screenOrientation="portrait" android:taskAffinity="com.android.incallui" android:theme="@style/Theme.InCallScreen" />
     <activity android:excludeFromRecents="true" android:exported="true" android:name="com.android.incallui.telecomeventui.InternationalCallOnWifiDialogActivity" android:noHistory="true" android:theme="@style/Theme.Incall.DialogHolder" />
-    <activity android:excludeFromRecents="true" android:exported="false" android:name=".SpamNotificationActivity" android:noHistory="true" android:taskAffinity="" android:theme="@style/AfterCallNotificationTheme">
+    <activity android:excludeFromRecents="true" android:exported="false" android:name="com.android.incallui.spam.SpamNotificationActivity" android:noHistory="true" android:taskAffinity="" android:theme="@style/AfterCallNotificationTheme">
     </activity>
-    <service android:exported="false" android:name=".SpamNotificationService" />
+    <service android:exported="false" android:name="com.android.incallui.spam.SpamNotificationService" />
     <activity android:name="com.android.contacts.common.dialog.CallSubjectDialog" android:theme="@style/Theme.CallSubjectDialogTheme" android:exported="false" android:windowSoftInputMode="stateVisible|adjustResize">
       <intent-filter>
         <action android:name="android.intent.action.VIEW" />
@@ -220,16 +220,16 @@
       <meta-data android:name="com.android.keyguard.layout" android:resource="@layout/keyguard_preview" />
     </activity>
     <activity-alias android:name="com.android.dialer.app.DialtactsActivity" android:exported="true" android:targetActivity="com.android.dialer.main.impl.MainActivity" />
-    <provider android:authorities="com.android.dialer.phonelookuphistory" android:exported="false" android:multiprocess="false" android:name=".PhoneLookupHistoryContentProvider" />
+    <provider android:authorities="${phoneLookupHistoryProviderAuthority}" android:exported="false" android:multiprocess="false" android:name="com.android.dialer.phonelookup.database.PhoneLookupHistoryContentProvider" />
     <activity android:label="@string/enriched_call_simulator_activity" android:name="com.android.dialer.enrichedcall.simulator.EnrichedCallSimulatorActivity">
     </activity>
-    <activity android:name=".RttTranscriptActivity" />
+    <activity android:name="com.android.dialer.rtt.RttTranscriptActivity" />
     <meta-data android:name="android.telephony.HIDE_VOICEMAIL_SETTINGS_MENU" android:value="true" />
     <activity android:exported="false" android:label="@string/voicemail_change_pin_preference_title" android:name="com.android.dialer.voicemail.settings.VoicemailChangePinActivity" android:parentActivityName="com.android.dialer.app.settings.DialerSettingsActivity" android:theme="@style/SettingsStyle" android:windowSoftInputMode="stateVisible|adjustResize">
     </activity>
-    <activity android:name=".RecordVoicemailGreetingActivity" android:configChanges="orientation|screenSize|keyboardHidden" android:label="@string/voicemail_change_greeting_preference_title" android:parentActivityName="com.android.dialer.app.settings.DialerSettingsActivity" android:theme="@style/SettingsStyle">
+    <activity android:name="com.android.dialer.voicemail.settings.RecordVoicemailGreetingActivity" android:configChanges="orientation|screenSize|keyboardHidden" android:label="@string/voicemail_change_greeting_preference_title" android:parentActivityName="com.android.dialer.app.settings.DialerSettingsActivity" android:theme="@style/SettingsStyle">
     </activity>
-    <activity android:name=".CurrentVoicemailGreetingActivity" android:label="@string/voicemail_change_greeting_preference_title" android:parentActivityName="com.android.dialer.app.settings.DialerSettingsActivity" android:exported="true">
+    <activity android:name="com.android.dialer.voicemail.settings.CurrentVoicemailGreetingActivity" android:label="@string/voicemail_change_greeting_preference_title" android:parentActivityName="com.android.dialer.app.settings.DialerSettingsActivity" android:exported="true">
     
     </activity>
     <activity android:label="@string/call_details" android:exported="false" android:name="com.android.dialer.calldetails.OldCallDetailsActivity">
@@ -264,7 +264,7 @@
         <action android:name="android.telecom.action.SHOW_MISSED_CALLS_NOTIFICATION" />
       </intent-filter>
     </receiver>
-    <receiver android:name=".voicemail.LegacyVoicemailNotificationReceiver" android:exported="true" android:directBootAware="true">
+    <receiver android:name="com.android.dialer.app.voicemail.LegacyVoicemailNotificationReceiver" android:exported="true" android:directBootAware="true">
       <intent-filter>
         <action android:name="android.telephony.action.SHOW_VOICEMAIL_NOTIFICATION" />
       </intent-filter>
@@ -274,7 +274,7 @@
     </receiver>
     <receiver android:exported="false" android:name="com.android.dialer.commandline.CommandLineReceiver">
     </receiver>
-    <provider android:authorities="com.android.dialer.files" android:exported="false" android:grantUriPermissions="true" android:name="android.support.v4.content.FileProvider">
+    <provider android:authorities="${fileProviderAuthority}" android:exported="false" android:grantUriPermissions="true" android:name="android.support.v4.content.FileProvider">
       <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
     </provider>
     <meta-data android:name="supports_per_number_preferred_account" android:value="true" />
@@ -285,9 +285,9 @@
         <data android:scheme="header" />
       </intent-filter>
     </activity>
-    <provider android:authorities="com.android.dialer.blocking.filterednumberprovider" android:exported="false" android:multiprocess="false" android:name="com.android.dialer.blocking.FilteredNumberProvider" />
+    <provider android:authorities="${filteredNumberProviderAuthority}" android:exported="false" android:multiprocess="false" android:name="com.android.dialer.blocking.FilteredNumberProvider" />
     <receiver android:name="com.android.dialer.location.CountryDetector$LocationChangedReceiver" />
-    <activity android:label="@string/assisted_dialing_setting_title" android:name=".AssistedDialingSettingActivity" android:parentActivityName="com.android.dialer.app.settings.DialerSettingsActivity" android:exported="true" android:theme="@style/SettingsStyle">
+    <activity android:label="@string/assisted_dialing_setting_title" android:name="com.android.dialer.assisteddialing.ui.AssistedDialingSettingActivity" android:parentActivityName="com.android.dialer.app.settings.DialerSettingsActivity" android:exported="true" android:theme="@style/SettingsStyle">
       <intent-filter>
         <action android:name="com.android.dialer.app.settings.SHOW_ASSISTED_DIALING_SETTINGS" />
         <category android:name="android.intent.category.DEFAULT" />
@@ -297,28 +297,27 @@
     </activity>
     <activity android:name="com.android.dialer.about.LicenseActivity" android:label="@string/licenseActivityLabel" android:exported="false" android:theme="@style/Theme.AppCompat.Light">
     </activity>
-    <service android:exported="false" android:name=".CallLogConfig$PollingJob" android:permission="android.permission.BIND_JOB_SERVICE" />
-    <provider android:authorities="com.android.dialer.annotatedcalllog" android:exported="false" android:multiprocess="false" android:name=".AnnotatedCallLogContentProvider" />
-    <service android:exported="false" android:name=".CallLogConfigImpl$PollingJob" android:permission="android.permission.BIND_JOB_SERVICE" />
-    <service android:name=".SharedPrefConfigProvider$Service" />
+    <provider android:authorities="${annotatedCallLogProviderAuthority}" android:exported="false" android:multiprocess="false" android:name="com.android.dialer.calllog.database.AnnotatedCallLogContentProvider" />
+    <service android:exported="false" android:name="com.android.dialer.calllog.config.CallLogConfigImpl$PollingJob" android:permission="android.permission.BIND_JOB_SERVICE" />
+    <service android:name="com.android.dialer.configprovider.SharedPrefConfigProvider$Service" />
     <service android:exported="false" android:name="com.android.dialer.interactions.ContactUpdateService" />
     <receiver android:name="com.android.dialer.interactions.UndemoteOutgoingCallReceiver" android:exported="true">
       <intent-filter>
         <action android:name="android.intent.action.NEW_OUTGOING_CALL" />
       </intent-filter>
     </receiver>
-    <service android:name=".SimulatorService" android:exported="true">
+    <service android:name="com.android.dialer.simulator.service.SimulatorService" android:exported="true">
     </service>
-    <service android:exported="true" android:name=".SimulatorConnectionService" android:permission="android.permission.BIND_CONNECTION_SERVICE">
+    <service android:exported="true" android:name="com.android.dialer.simulator.impl.SimulatorConnectionService" android:permission="android.permission.BIND_CONNECTION_SERVICE">
       <intent-filter>
         <action android:name="android.telecomm.ConnectionService" />
       </intent-filter>
     </service>
-    <provider android:authorities="com.android.dialer.preferredsimfallback" android:exported="true" android:multiprocess="false" android:name=".PreferredSimFallbackProvider" android:readPermission="android.permission.READ_CONTACTS" android:writePermission="android.permission.WRITE_CONTACTS" />
+    <provider android:authorities="${preferredSimFallbackProviderAuthority}" android:exported="true" android:multiprocess="false" android:name="com.android.dialer.preferredsim.impl.PreferredSimFallbackProvider" android:readPermission="android.permission.READ_CONTACTS" android:writePermission="android.permission.WRITE_CONTACTS" />
     <meta-data android:name="com.android.dialer.SUPPORTS_PREFERRED_SIM" android:value="true" />
-    <meta-data android:name="com.android.dialer.PREFERRED_SIM_FALLBACK_AUTHORITY" android:value="com.android.dialer.preferredsimfallback" />
-    <service android:exported="false" android:name=".PeriodicJobService" android:permission="android.permission.BIND_JOB_SERVICE" />
-    <activity android:name=".CallContactActivity" android:taskAffinity="" android:noHistory="true" android:excludeFromRecents="true" android:label="" android:exported="false" android:theme="@style/CallContactsTheme" />
+    <meta-data android:name="com.android.dialer.PREFERRED_SIM_FALLBACK_AUTHORITY" android:value="${preferredSimFallbackProviderAuthority}" />
+    <service android:exported="false" android:name="com.android.dialer.shortcuts.PeriodicJobService" android:permission="android.permission.BIND_JOB_SERVICE" />
+    <activity android:name="com.android.dialer.shortcuts.CallContactActivity" android:taskAffinity="" android:noHistory="true" android:excludeFromRecents="true" android:label="" android:exported="false" android:theme="@style/CallContactsTheme" />
     <activity android:excludeFromRecents="true" android:exported="true" android:name="com.android.dialer.precall.externalreceiver.LaunchPreCallActivity" android:noHistory="true" android:permission="android.permission.CALL_PHONE" android:theme="@style/Theme.PreCall.DialogHolder">
       <intent-filter>
         <action android:name="com.android.dialer.LAUNCH_PRE_CALL" />
