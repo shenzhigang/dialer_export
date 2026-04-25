@@ -47,14 +47,20 @@ def excludedExtraPackages = [
     'com.android.incallui.maps.impl',
 ]
 
+def toUnixPath = { File path ->
+  path.path.replace(File.separatorChar, '/' as char)
+}
+
 def collectResDirs = {
   def dirs = []
+  def aospRoot = file('src/main/aosp')
   file('src/main/aosp').eachDirRecurse { dir ->
-    if (dir.name == 'res' && !dir.path.endsWith('java/com/android/incallui/maps/impl/res')) {
+    def relativeDir = aospRoot.toPath().relativize(dir.toPath()).toString().replace(File.separatorChar, '/' as char)
+    if (dir.name == 'res' && relativeDir != 'java/com/android/incallui/maps/impl/res') {
       dirs << dir
     }
   }
-  dirs.sort { a, b -> a.path <=> b.path }
+  dirs.sort { a, b -> toUnixPath(a) <=> toUnixPath(b) }
 }
 
 def readExtraPackages = {
