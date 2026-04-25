@@ -1,6 +1,6 @@
 # dialer_export
 
-从当前 AOSP `packages/apps/Dialer` 导出的 Android Studio / Gradle 工程。
+从当前 AOSP (android13.0.0_r1) `packages/apps/Dialer` 导出的 Android Studio / Gradle 工程。
 
 特点:
 
