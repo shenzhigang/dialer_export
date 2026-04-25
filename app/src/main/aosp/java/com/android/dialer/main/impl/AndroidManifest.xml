@@ -118,7 +118,7 @@
     <activity-alias
         android:name="com.android.dialer.app.DialtactsActivity"
         android:exported="true"
-        android:targetActivity=".MainActivity"/>
+        android:targetActivity="com.android.dialer.main.impl.MainActivity"/>
 
   </application>
 </manifest>

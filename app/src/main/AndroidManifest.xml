@@ -219,7 +219,7 @@
       </intent-filter>
       <meta-data android:name="com.android.keyguard.layout" android:resource="@layout/keyguard_preview" />
     </activity>
-    <activity-alias android:name="com.android.dialer.app.DialtactsActivity" android:exported="true" android:targetActivity=".MainActivity" />
+    <activity-alias android:name="com.android.dialer.app.DialtactsActivity" android:exported="true" android:targetActivity="com.android.dialer.main.impl.MainActivity" />
     <provider android:authorities="com.android.dialer.phonelookuphistory" android:exported="false" android:multiprocess="false" android:name=".PhoneLookupHistoryContentProvider" />
     <activity android:label="@string/enriched_call_simulator_activity" android:name="com.android.dialer.enrichedcall.simulator.EnrichedCallSimulatorActivity">
     </activity>
