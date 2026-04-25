@@ -1,0 +1,385 @@
+plugins {
+  id 'com.android.application'
+}
+
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import javax.xml.XMLConstants
+import javax.xml.parsers.DocumentBuilderFactory
+import javax.xml.transform.OutputKeys
+import javax.xml.transform.TransformerFactory
+import javax.xml.transform.dom.DOMSource
+import javax.xml.transform.stream.StreamResult
+
+def packagesMk = file('src/main/aosp/packages.mk')
+def mergedResDir = file("$buildDir/generated/merged-res/main")
+def generatedRShimsDir = file("$buildDir/generated/r-shims/main")
+def debugRSymbolFile = file("$buildDir/intermediates/runtime_symbol_list/debug/processDebugResources/R.txt")
+def excludedJavaFiles = [
+    'com/android/incallui/calllocation/impl/AuthException.java',
+    'com/android/incallui/calllocation/impl/CallLocationImpl.java',
+    'com/android/incallui/calllocation/impl/CallLocationModule.java',
+    'com/android/incallui/calllocation/impl/DownloadMapImageTask.java',
+    'com/android/incallui/calllocation/impl/GoogleLocationSettingHelper.java',
+    'com/android/incallui/calllocation/impl/HttpFetcher.java',
+    'com/android/incallui/calllocation/impl/LocationFragment.java',
+    'com/android/incallui/calllocation/impl/LocationHelper.java',
+    'com/android/incallui/calllocation/impl/LocationPresenter.java',
+    'com/android/incallui/calllocation/impl/LocationUrlBuilder.java',
+    'com/android/incallui/calllocation/impl/ReverseGeocodeTask.java',
+    'com/android/incallui/calllocation/impl/TrafficStatsTags.java',
+    'com/android/incallui/maps/impl/MapsImpl.java',
+    'com/android/incallui/maps/impl/MapsModule.java',
+    'com/android/incallui/maps/impl/StaticMapFragment.java',
+    'com/android/contacts/common/format/testing/SpannedTestUtils.java',
+    'com/android/dialer/constants/googledialer/ConstantsImpl.java',
+    'com/android/dialer/binary/google/GoogleStubDialerRootComponent.java',
+    'com/android/dialer/binary/google/GoogleStubDialerApplication.java',
+]
+def excludedJavaGlobs = [
+    'com/android/dialer/rootcomponentgenerator/**',
+    'com/android/dialer/inject/demo/**',
+]
+def excludedExtraPackages = [
+    'com.android.dialer.binary.aosp.testing',
+    'com.android.dialer.binary.google',
+    'com.android.incallui.calllocation.impl',
+    'com.android.incallui.maps.impl',
+]
+
+def collectResDirs = {
+  def dirs = []
+  file('src/main/aosp').eachDirRecurse { dir ->
+    if (dir.name == 'res' && !dir.path.endsWith('java/com/android/incallui/maps/impl/res')) {
+      dirs << dir
+    }
+  }
+  dirs.sort { a, b -> a.path <=> b.path }
+}
+
+def readExtraPackages = {
+  packagesMk.readLines()
+      .collect { it.replace('\\', ' ').trim() }
+      .findAll { it.startsWith('com.android.') }
+      .findAll { !excludedExtraPackages.contains(it) }
+}
+
+def collectRShimPackages = {
+  def packages = new TreeSet<String>()
+  file('src/main/aosp/java').eachFileRecurse(groovy.io.FileType.FILES) { sourceFile ->
+    if (!sourceFile.name.endsWith('.java')) {
+      return
+    }
+    sourceFile.eachLine { line ->
+      def packageMatcher = (line =~ /^\s*package\s+([A-Za-z0-9_.]+)\s*;/)
+      if (packageMatcher.matches()) {
+        packages << packageMatcher.group(1)
+      }
+      def matcher = (line =~ /^\s*import\s+([A-Za-z0-9_.]+)\.R\s*;/)
+      if (matcher.matches()) {
+        packages << matcher.group(1)
+      }
+    }
+  }
+  packages.findAll { it != 'com.android.dialer' }
+}
+
+def buildValuesResourceKey = { node ->
+  def tagName = node.localName ?: node.nodeName
+  def name = node.hasAttribute('name') ? node.getAttribute('name') : ''
+  def type = node.hasAttribute('type') ? node.getAttribute('type') : ''
+  if (name) {
+    return "${tagName}:${type}:${name}".toString()
+  }
+  "${tagName}:${node.textContent?.trim() ?: ''}".toString()
+}
+
+tasks.register('prepareMergedDialerResources') {
+  inputs.property('resDirOrder', providers.provider { collectResDirs()*.path })
+  inputs.files(providers.provider { files(collectResDirs()) })
+  outputs.dir(mergedResDir)
+
+  doLast {
+    delete(mergedResDir)
+    mergedResDir.mkdirs()
+
+    def valuesFilesByQualifier = [:].withDefault { [] }
+
+    collectResDirs().each { resDir ->
+      resDir.eachFileRecurse(groovy.io.FileType.FILES) { resourceFile ->
+        def relPath = resDir.toPath().relativize(resourceFile.toPath()).toString()
+            .replace(File.separatorChar, '/' as char)
+        def pathSegments = relPath.tokenize('/')
+        def folderName = pathSegments.first()
+
+        if (folderName.startsWith('values')) {
+          valuesFilesByQualifier[folderName] << resourceFile
+          return
+        }
+
+        def outputFile = new File(mergedResDir, relPath)
+        outputFile.parentFile.mkdirs()
+        Files.copy(
+            resourceFile.toPath(),
+            outputFile.toPath(),
+            StandardCopyOption.REPLACE_EXISTING,
+            StandardCopyOption.COPY_ATTRIBUTES)
+      }
+    }
+
+    def documentBuilderFactory = DocumentBuilderFactory.newInstance()
+    documentBuilderFactory.setNamespaceAware(true)
+    def transformerFactory = TransformerFactory.newInstance()
+    def declaredStyleableAttrs = new LinkedHashSet<String>()
+
+    valuesFilesByQualifier.each { qualifier, filesForQualifier ->
+      def outputDir = new File(mergedResDir, qualifier)
+      outputDir.mkdirs()
+
+      def mergedDocument = documentBuilderFactory.newDocumentBuilder().newDocument()
+      def root = mergedDocument.createElement('resources')
+      root.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, 'xmlns:xliff', 'urn:oasis:names:tc:xliff:document:1.2')
+      root.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, 'xmlns:tools', 'http://schemas.android.com/tools')
+      root.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, 'xmlns:aapt', 'http://schemas.android.com/aapt')
+      mergedDocument.appendChild(root)
+
+      def mergedNodes = new LinkedHashMap<String, org.w3c.dom.Node>()
+      filesForQualifier.each { valuesFile ->
+        def parsedDocument = documentBuilderFactory.newDocumentBuilder().parse(valuesFile)
+        def rootNode = parsedDocument.documentElement
+        for (int i = 0; i < rootNode.childNodes.length; i++) {
+          def child = rootNode.childNodes.item(i)
+          if (child.nodeType != org.w3c.dom.Node.ELEMENT_NODE) {
+            continue
+          }
+          def key = buildValuesResourceKey(child)
+          if (mergedNodes.containsKey(key)) {
+            root.removeChild(mergedNodes[key])
+          }
+          def importedChild = mergedDocument.importNode(child, true)
+          if (qualifier == 'values' && importedChild.nodeName == 'declare-styleable') {
+            def duplicateAttrNodes = []
+            for (int j = 0; j < importedChild.childNodes.length; j++) {
+              def styleableChild = importedChild.childNodes.item(j)
+              if (styleableChild.nodeType != org.w3c.dom.Node.ELEMENT_NODE || styleableChild.nodeName != 'attr') {
+                continue
+              }
+              def attrName = styleableChild.getAttribute('name')
+              if (!attrName || attrName.startsWith('android:')) {
+                continue
+              }
+              if (declaredStyleableAttrs.contains(attrName)) {
+                duplicateAttrNodes << styleableChild
+                continue
+              }
+              declaredStyleableAttrs.add(attrName)
+            }
+            duplicateAttrNodes.each { duplicateAttrNode ->
+              def attrReference = mergedDocument.createElement('attr')
+              attrReference.setAttribute('name', duplicateAttrNode.getAttribute('name'))
+              importedChild.replaceChild(attrReference, duplicateAttrNode)
+            }
+          }
+          root.appendChild(importedChild)
+          mergedNodes[key] = importedChild
+        }
+      }
+
+      def transformer = transformerFactory.newTransformer()
+      transformer.setOutputProperty(OutputKeys.INDENT, 'yes')
+      transformer.setOutputProperty(OutputKeys.ENCODING, 'utf-8')
+      transformer.transform(
+          new DOMSource(mergedDocument),
+          new StreamResult(new File(outputDir, 'merged.xml')))
+    }
+  }
+}
+
+tasks.register('generateRPackageShims') {
+  inputs.file(debugRSymbolFile)
+  inputs.property('shimPackages', providers.provider { collectRShimPackages() as List })
+  outputs.dir(generatedRShimsDir)
+
+  doLast {
+    if (!debugRSymbolFile.exists()) {
+      throw new GradleException("Missing R symbol file: ${debugRSymbolFile}")
+    }
+
+    delete(generatedRShimsDir)
+    generatedRShimsDir.mkdirs()
+
+    def resourcesByType = [:].withDefault { [] }
+    debugRSymbolFile.eachLine { line ->
+      def matcher = (line =~ /^(int(?:\[\])?)\s+([A-Za-z0-9_]+)\s+([A-Za-z0-9_]+)\s+(.+)$/)
+      if (!matcher.matches()) {
+        return
+      }
+      resourcesByType[matcher.group(2)] << [
+          javaType: matcher.group(1),
+          name    : matcher.group(3),
+          value   : matcher.group(4),
+      ]
+    }
+
+    collectRShimPackages().each { pkg ->
+      def outputFile = new File(generatedRShimsDir, "${pkg.replace('.', '/')}/R.java")
+      outputFile.parentFile.mkdirs()
+      outputFile.withWriter('UTF-8') { writer ->
+        writer.println("package ${pkg};")
+        writer.println()
+        writer.println('public final class R {')
+        resourcesByType.keySet().sort().each { resourceType ->
+          writer.println("  public static final class ${resourceType} {")
+          resourcesByType[resourceType].each { entry ->
+            writer.println(
+                "    public static final ${entry.javaType} ${entry.name} = com.android.dialer.R.${resourceType}.${entry.name};")
+          }
+          writer.println('  }')
+          writer.println()
+        }
+        writer.println('}')
+      }
+    }
+  }
+}
+
+android {
+  namespace 'com.android.dialer'
+  compileSdk 35
+
+  defaultConfig {
+    applicationId 'com.android.dialer'
+    minSdk 24
+    targetSdk 30
+    versionCode 2900000
+    versionName '23.0'
+    testInstrumentationRunner 'android.support.test.runner.AndroidJUnitRunner'
+  }
+
+  buildFeatures {
+    aidl true
+    buildConfig true
+  }
+
+  sourceSets {
+    main {
+      manifest.srcFile 'src/main/AndroidManifest.xml'
+      java.srcDirs = [
+          'src/main/aosp/java',
+          'src/main/generated-proto',
+          'src/main/compat/java',
+          generatedRShimsDir,
+      ]
+      aidl.srcDirs = ['src/main/aosp/java']
+      res.srcDirs = [mergedResDir]
+      assets.srcDirs = []
+      java.exclude excludedJavaFiles
+      java.exclude excludedJavaGlobs
+    }
+  }
+
+  androidResources {
+    additionalParameters.add('--auto-add-overlay')
+    readExtraPackages().each { pkg ->
+      additionalParameters.add('--extra-packages')
+      additionalParameters.add(pkg)
+    }
+    additionalParameters.add('--extra-packages')
+    additionalParameters.add('me.leolin.shortcutbadger')
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_1_8
+    targetCompatibility JavaVersion.VERSION_1_8
+  }
+
+  useLibrary 'org.apache.http.legacy'
+
+  packaging {
+    resources {
+      excludes += [
+          'META-INF/DEPENDENCIES',
+          'META-INF/INDEX.LIST',
+          'META-INF/LICENSE*',
+          'META-INF/NOTICE*',
+          'META-INF/*.kotlin_module',
+      ]
+    }
+  }
+
+  lint {
+    abortOnError false
+  }
+}
+
+tasks.named('preBuild').configure {
+  dependsOn tasks.named('prepareMergedDialerResources')
+}
+
+tasks.configureEach { task ->
+  if (task.name == 'generateRPackageShims') {
+    task.dependsOn('processDebugResources')
+  }
+  if (task.name == 'compileDebugJavaWithJavac') {
+    task.dependsOn('generateRPackageShims')
+  }
+}
+
+configurations.configureEach {
+  resolutionStrategy.force 'com.squareup:javapoet:1.10.0'
+}
+
+dependencies {
+  implementation files(
+      'libs/annotation-SNAPSHOT.jar',
+      'libs/disklrucache-SNAPSHOT.jar',
+      'libs/gifdecoder-SNAPSHOT.jar',
+      'libs/glide-SNAPSHOT.jar',
+      'libs/libphonenumber.jar',
+      'libs/libphonenumber-geocoder.jar',
+      'libs/libphonenumber-platform.jar',
+      'libs/libphonenumber-prefixmapper.jar',
+      'libs/zxing-core.jar',
+  )
+
+  implementation 'com.android.support:appcompat-v7:28.0.0'
+  implementation 'com.android.support:cardview-v7:28.0.0'
+  implementation 'com.android.support:design:28.0.0'
+  implementation 'com.android.support:recyclerview-v7:28.0.0'
+  implementation 'com.android.support:support-dynamic-animation:28.0.0'
+  implementation 'com.android.support:transition:28.0.0'
+  implementation 'com.android.support:support-v13:28.0.0'
+  implementation 'com.android.support:support-v4:28.0.0'
+
+  implementation 'com.android.volley:volley:1.2.0'
+  implementation 'com.google.auto.value:auto-value-annotations:1.6.2'
+  implementation 'com.google.code.findbugs:jsr305:3.0.2'
+  implementation 'com.google.dagger:dagger:2.7'
+  implementation 'com.google.errorprone:error_prone_annotations:2.0.12'
+  implementation 'com.google.guava:guava:23.0'
+  implementation 'com.google.j2objc:j2objc-annotations:1.1'
+  implementation 'commons-io:commons-io:2.4'
+  implementation 'io.grpc:grpc-context:1.0.3'
+  implementation 'io.grpc:grpc-core:1.0.3'
+  implementation 'io.grpc:grpc-okhttp:1.0.3'
+  implementation 'io.grpc:grpc-protobuf-lite:1.0.3'
+  implementation 'io.grpc:grpc-stub:1.0.3'
+  implementation 'javax.annotation:javax.annotation-api:1.2'
+  implementation 'javax.inject:javax.inject:1'
+  implementation 'me.leolin:ShortcutBadger:1.1.13'
+  implementation 'org.apache.james:apache-mime4j-core:0.7.2'
+  implementation 'org.apache.james:apache-mime4j-dom:0.7.2'
+  implementation 'org.codehaus.mojo:animal-sniffer-annotations:1.14'
+  implementation 'com.squareup.okhttp:okhttp:2.7.4'
+  implementation 'com.squareup.okio:okio:1.9.0'
+
+  annotationProcessor files(
+      'libs/guava-23.0.jar',
+      'libs/javapoet-1.10.0.jar',
+      'libs/javax.annotation-api-1.2.jar',
+      'libs/annotation-SNAPSHOT.jar',
+      'libs/compiler-SNAPSHOT.jar',
+  )
+  annotationProcessor 'com.google.auto.value:auto-value:1.5.2'
+  annotationProcessor 'com.google.dagger:dagger-compiler:2.7'
+}
